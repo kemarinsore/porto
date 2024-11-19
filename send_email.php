@@ -1,45 +1,52 @@
 <?php
+use Dotenv\Dotenv;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require 'vendor/autoload.php';
+require 'vendor/autoload.php'; // Autoload Composer untuk PHPMailer dan Dotenv
 
-// Pastikan data diterima via POST
+// Muat file .env
+$dotenv = Dotenv::createImmutable(__DIR__);
+$dotenv->load();
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $name = $_POST['name'];
-    $email = $_POST['email'];
-    $message = $_POST['message'];
+    $name = htmlspecialchars(trim($_POST['name']));
+    $email = htmlspecialchars(trim($_POST['email']));
+    $message = htmlspecialchars(trim($_POST['message']));
 
-    $mail = new PHPMailer(true);
+    if (!empty($name) && !empty($email) && !empty($message)) {
+        if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $mail = new PHPMailer(true);
+            try {
+                // Konfigurasi SMTP
+                $mail->isSMTP();
+                $mail->Host = $_ENV['MAIL_HOST']; // Ambil dari .env
+                $mail->SMTPAuth = true;
+                $mail->Username = $_ENV['MAIL_USERNAME']; // Ambil dari .env
+                $mail->Password = $_ENV['MAIL_PASSWORD']; // Ambil dari .env
+                $mail->SMTPSecure = $_ENV['MAIL_ENCRYPTION']; // Ambil dari .env
+                $mail->Port = $_ENV['MAIL_PORT']; // Ambil dari .env
 
-    try {
-        // Pengaturan server SMTP
-        $mail->isSMTP();
-        $mail->Host       = 'smtp.example.com';       // Server SMTP
-        $mail->SMTPAuth   = true;                     // Aktifkan otentikasi SMTP
-        $mail->Username   = 'aryaandika0@gmail.com';  // Alamat email pengirim
-        $mail->Password   = 'fvwqmvmarrlmmhhk';       // Kata sandi SMTP
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; // Aktifkan enkripsi TLS implisit
-        $mail->Port       = 465;                      // Port TLS
+                // Detail email
+                $mail->setFrom($_ENV['MAIL_USERNAME'], 'Portfolio Website');
+                $mail->addAddress('aryaandika0@gmail.com'); // Ganti dengan email penerima
+                $mail->Subject = "Message from $name via Portfolio";
+                $mail->Body = "Name: $name\nEmail: $email\n\nMessage:\n$message";
 
-        // Penerima dan pengirim
-        $mail->setFrom($email, $name);               // Set pengirim sesuai data form
-        $mail->addAddress('aryaandika0@gmail.com', 'Owner'); // Tambahkan penerima (alamat Anda)
-
-        // Konten email
-        $mail->isHTML(true);                          // Mengirim email dalam format HTML
-        $mail->Subject = 'New Contact Form Submission';
-        $mail->Body    = "<h3>New Message from Contact Form</h3>
-                          <p><strong>Name:</strong> {$name}</p>
-                          <p><strong>Email:</strong> {$email}</p>
-                          <p><strong>Message:</strong><br>{$message}</p>";
-
-        $mail->send();
-        echo 'Message has been sent';
-    } catch (Exception $e) {
-        echo "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
+                // Kirim email
+                $mail->send();
+                echo "<script>alert('Email sent successfully!'); window.location.href = 'index.html';</script>";
+            } catch (Exception $e) {
+                error_log("PHPMailer Error: " . $mail->ErrorInfo);
+                echo "<script>alert('Failed to send email. Please try again later.'); window.history.back();</script>";
+            }
+        } else {
+            echo "<script>alert('Invalid email address.'); window.history.back();</script>";
+        }
+    } else {
+        echo "<script>alert('All fields are required.'); window.history.back();</script>";
     }
 } else {
-    echo 'Invalid request method.';
+    echo "<script>alert('Invalid request.'); window.history.back();</script>";
 }
 ?>
